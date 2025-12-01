@@ -22,12 +22,34 @@ fun main() {
     }
 
     fun part2(input: List<String>): Int {
-        return input.size
+        var currentPosition = 50
+        var zeroHits = 0
+
+        for (line in input) {
+            val direction = line.first()
+            val steps = line.drop(1).toInt()
+
+            repeat(steps) {
+                if (direction == 'R') {
+                    currentPosition++
+                    if (currentPosition > 99) currentPosition = 0
+                } else {
+                    currentPosition--
+                    if (currentPosition < 0) currentPosition = 99
+                }
+
+                if (currentPosition == 0) {
+                    zeroHits++
+                }
+            }
+        }
+        return zeroHits
     }
 
     // Test if implementation meets criteria from the description
     val testInput = readInput("Day01_test")
     check(part1(testInput) == 3)
+    check(part2(testInput) == 6)
 
     // Read the input from the `src/Day01.txt` file.
     val input = readInput("Day01")
