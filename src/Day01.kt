@@ -1,49 +1,47 @@
 fun main() {
+    val trackSize = 100
+    val startPosition = 50
+
+    fun parseInstruction(line: String): Pair<Char, Int> {
+        val direction = line.first()
+        val distance = line.drop(1).toInt()
+        return direction to distance
+    }
+
+    fun move(position: Int, direction: Char, distance: Int, size: Int): Int = when (direction) {
+        'L' -> (position - distance).mod(size)
+        'R' -> (position + distance).mod(size)
+        else -> position
+    }
+
+    fun stepOnce(position: Int, direction: Char, size: Int): Int =
+        if (direction == 'R') (position + 1).mod(size) else (position - 1).mod(size)
+
     fun part1(input: List<String>): Int {
-        var position = 50
-        var count = 0
+        var position = startPosition
+        var hits = 0
 
         for (line in input) {
-            val direction = line[0]
-            val distance = line.substring(1).toInt()
-
-            position = when (direction) {
-                'L' -> (position - distance).mod(100)
-                'R' -> (position + distance).mod(100)
-                else -> position
-            }
-
-            if (position == 0) {
-                count++
-            }
+            val (direction, distance) = parseInstruction(line)
+            position = move(position, direction, distance, trackSize)
+            if (position == 0) hits++
         }
 
-        return count
+        return hits
     }
 
     fun part2(input: List<String>): Int {
-        var currentPosition = 50
-        var zeroHits = 0
+        var position = startPosition
+        var hits = 0
 
         for (line in input) {
-            val direction = line.first()
-            val steps = line.drop(1).toInt()
-
+            val (direction, steps) = parseInstruction(line)
             repeat(steps) {
-                if (direction == 'R') {
-                    currentPosition++
-                    if (currentPosition > 99) currentPosition = 0
-                } else {
-                    currentPosition--
-                    if (currentPosition < 0) currentPosition = 99
-                }
-
-                if (currentPosition == 0) {
-                    zeroHits++
-                }
+                position = stepOnce(position, direction, trackSize)
+                if (position == 0) hits++
             }
         }
-        return zeroHits
+        return hits
     }
 
     // Test if implementation meets criteria from the description
@@ -51,7 +49,6 @@ fun main() {
     check(part1(testInput) == 3)
     check(part2(testInput) == 6)
 
-    // Read the input from the `src/Day01.txt` file.
     val input = readInput("Day01")
     part1(input).println()
     part2(input).println()
