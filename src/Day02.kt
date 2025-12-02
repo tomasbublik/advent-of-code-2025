@@ -1,78 +1,14 @@
+// Pomocná funkce: celočíselné dělení nahoru (a, b > 0)
+// Celé dělení nahoru: ceil(a / b) pro kladné hodnoty
+private fun ceilDiv(a: Long, b: Long): Long {
+    require(b > 0) { "b must be positive" }
+    // V AoC vstupu máme kladná čísla, takže tahle zjednodušená verze stačí
+    return if (a >= 0L) (a + b - 1L) / b else a / b
+}
+
 fun main() {
-    fun part1(input: List<String>): Int {
-        val startTime = System.nanoTime()
-        // Součet všech "neplatných" ID v daných intervalech.
-        // Neplatné ID: má sudý počet číslic 2k a je tvořeno zdvojením poloviny P: n = PP.
-        // Ekvivalentně: n = P * (10^k + 1), kde P má právě k číslic (první číslice P != '0').
 
-        fun pow10(exp: Int): Long {
-            var res = 1L
-            repeat(exp) { res *= 10L }
-            return res
-        }
-
-        fun ceilDiv(a: Long, b: Long): Long = if (a >= 0) (a + b - 1) / b else a / b // vstupy očekáváme nezáporné
-        fun floorDiv(a: Long, b: Long): Long = a / b
-
-        fun sumConsecutive(l: Long, r: Long): Long {
-            val n = r - l + 1
-            // (l + r) * n / 2, dělejme v longu a vyhněme se přetečení přes dělení předem, pokud to jde
-            return if (n % 2L == 0L) (l + r) * (n / 2) else ((l + r) / 2) * n
-        }
-
-        fun sumInvalidInRange(aIn: Long, bIn: Long): Long {
-            if (aIn > bIn) return 0L
-            var total = 0L
-            // Pro k od 1 do 9 (max 18 číslic => 2k <= 18)
-            for (k in 1..9) {
-                val tenK = pow10(k)
-                val tenK_1 = pow10(k - 1)
-                val c = tenK + 1 // 10^k + 1
-
-                // Rozsah P dle definice (k číslic, první číslice != 0)
-                val pMin = tenK_1
-                val pMax = tenK - 1
-
-                // Odvozené omezení z intervalu [a,b]: P in [ceil(a/c), floor(b/c)]
-                val pFromA = ceilDiv(aIn, c)
-                val pFromB = floorDiv(bIn, c)
-
-                val L = maxOf(pMin, pFromA)
-                val R = minOf(pMax, pFromB)
-                if (L <= R) {
-                    val sumP = sumConsecutive(L, R)
-                    total += c * sumP
-                }
-            }
-            return total
-        }
-
-        // Parsování: můžeme mít vstup rozdělený do více řádků (např. zalomený příklad),
-        // ale skutečný input bývá na jednom řádku. Vezmeme všechny řádky a splitneme podle ','.
-        var answer = 0L
-        for (line in input) {
-            if (line.isBlank()) continue
-            val parts = line.split(',')
-            for (part in parts) {
-                val token = part.trim()
-                if (token.isEmpty()) continue
-                val dash = token.indexOf('-')
-                if (dash <= 0 || dash >= token.length - 1) continue // obrana proti špatnému tokenu
-                val a = token.substring(0, dash).trim().toLong()
-                val b = token.substring(dash + 1).trim().toLong()
-                val lo = minOf(a, b)
-                val hi = maxOf(a, b)
-                answer += sumInvalidInRange(lo, hi)
-            }
-        }
-
-        val result = answer.toInt()
-        val elapsedMs = (System.nanoTime() - startTime) / 1_000_000
-        println("[Day02][part1] elapsed ${elapsedMs} ms")
-        return result
-    }
-
-    fun part1Faster(input: List<String>): Int {
+    fun part1(input: List<String>): Long {
         val startTime = System.nanoTime()
 
         // Pomocná funkce 10^exp jako Long
@@ -80,16 +16,6 @@ fun main() {
             var result = 1L
             repeat(exp) { result *= 10 }
             return result
-        }
-
-        // Celé dělení nahoru: ceil(a / b) pro kladné hodnoty
-        fun ceilDiv(a: Long, b: Long): Long {
-            require(b > 0) { "b must be positive" }
-            if (a >= 0) {
-                return (a + b - 1) / b
-            }
-            // pro jistotu obecná varianta
-            return a / b
         }
 
         // Vstup je ve skutečnosti jeden řádek, případně zalomený – sloupneme vše dohromady
@@ -160,22 +86,121 @@ fun main() {
         val elapsedMs = (System.nanoTime() - startTime) / 1_000_000
         println("[Day02][part1Faster] elapsed ${elapsedMs} ms")
 
-        return sum.toInt()
+        return sum
     }
 
-    fun part2(input: List<String>): Int {
-        // TODO: Implement Day 02 - Part 2
-        return 0
+    fun part2(input: List<String>): Long {
+        // Stejně jako dřív: všechno je na jedné řádce, ale pro jistotu slepíme
+        val line = input.joinToString(separator = "").trim()
+        if (line.isEmpty()) return 0L
+
+        // Parsování intervalů "a-b" oddělených čárkami
+        val ranges = mutableListOf<LongRange>()
+        for (token in line.split(',')) {
+            val t = token.trim()
+            if (t.isEmpty()) continue
+            val parts = t.split('-')
+            require(parts.size == 2) { "Invalid range: $t" }
+            val start = parts[0].toLong()
+            val end = parts[1].toLong()
+            ranges += start..end
+        }
+        if (ranges.isEmpty()) return 0L
+
+        val minValue = ranges.minOf { it.first }
+        val maxValue = ranges.maxOf { it.last }
+
+        // Počet číslic maxValue – to nám ořízne maximální délky vzoru/opakování
+        val maxDigits = maxValue.toString().length
+
+        // Maximální délka vzoru k – minimálně 1, maximálně floor(maxDigits / 2)
+        val maxK = maxDigits / 2
+        if (maxK <= 0) return 0L
+
+        // Předpočítáme 10^k pro k = 0..maxK
+        val pow10 = LongArray(maxK + 1)
+        pow10[0] = 1L
+        for (i in 1..maxK) {
+            pow10[i] = pow10[i - 1] * 10L
+        }
+
+        val seen = mutableSetOf<Long>()  // abychom nepočítali stejná čísla víckrát
+        var sum = 0L
+
+        for (k in 1..maxK) {
+            val pow10k = pow10[k]
+            val pMinGlobal = pow10k / 10L      // 10^(k-1)
+            val pMaxGlobal = pow10k - 1L       // 10^k - 1
+
+            // Kolikrát můžeme vzor opakovat, aby délka d = m*k nepřesáhla maxDigits
+            val maxRepeats = maxDigits / k
+            if (maxRepeats < 2) continue
+
+            // Pro m = 2..maxRepeats
+            for (m in 2..maxRepeats) {
+                val digits = m * k
+
+                // spočítáme factor = 1 + 10^k + 10^(2k) + ... + 10^((m-1)k)
+                var factor = 0L
+                var term = 1L
+                repeat(m) { i ->
+                    factor += term
+                    if (i != m - 1) {
+                        term *= pow10k
+                    }
+                }
+
+                // Minimální a maximální možná hodnota n pro tento (k, m)
+                // n_min = pMinGlobal * factor, n_max = pMaxGlobal * factor
+                // (vždy v rámci Long, viz odůvodnění)
+                val minN = pMinGlobal * factor
+                if (minN > maxValue) {
+                    // i nejmenší n je větší než všechno ve vstupu -> další m budou jen větší
+                    break
+                }
+                val maxN = pMaxGlobal * factor
+                if (maxN < minValue) {
+                    // i největší n je menší než cokoli ve vstupu -> zkusíme větší m
+                    continue
+                }
+
+                // Teď projdeme všechny vstupní intervaly
+                for (range in ranges) {
+                    val a = range.first
+                    val b = range.last
+
+                    // Rychlé vyhození intervalů, které se s [minN, maxN] nepotkají
+                    if (b < minN || a > maxN) continue
+
+                    // Chceme P tak, aby:
+                    //   a <= P * factor <= b
+                    // a zároveň P ∈ [pMinGlobal, pMaxGlobal]
+                    var pLow = ceilDiv(a, factor)
+                    var pHigh = b / factor
+
+                    if (pLow < pMinGlobal) pLow = pMinGlobal
+                    if (pHigh > pMaxGlobal) pHigh = pMaxGlobal
+                    if (pLow > pHigh) continue
+
+                    for (p in pLow..pHigh) {
+                        val n = p * factor  // bezpečné: n <= b <= maxValue <= Long.MAX_VALUE
+                        if (seen.add(n)) {
+                            sum += n
+                        }
+                    }
+                }
+            }
+        }
+
+        return sum
     }
 
     // Test if implementation meets criteria from the description
     val testInput = readInput("Day02_test")
-     check(part1(testInput) == 1227775554)
-     check(part1Faster(testInput) == 1227775554)
-    // check(part2(testInput) == EXPECTED_PART2)
+    check(part1(testInput) == 1227775554L)
+    check(part2(testInput) == 4174379265)
 
     val input = readInput("Day02")
     part1(input).println()
-    part1Faster(input).println()
     part2(input).println()
 }
