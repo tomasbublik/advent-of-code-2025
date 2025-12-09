@@ -12,7 +12,7 @@ sourceSets {
 }
 
 application {
-    mainClass.set("Day01Kt")
+    mainClass.set(project.findProperty("mainClass")?.toString() ?: "Day01Kt")
 }
 
 tasks {
