@@ -107,6 +107,7 @@ fun main() {
 
     val testInput = readInput("Day07_test")
     check(part1(testInput) == 21)
+    check(part2(testInput) == 40L)
 
     val input = readInput("Day07")
     println("Part 1: ${part1(input)}")
